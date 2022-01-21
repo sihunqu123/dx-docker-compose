@@ -23,8 +23,8 @@ services:
       - wps_mysql
     volumes:
 #   folder to store the jar files needed when transferring to db2
-      - ./jar:/opt/ibm/db2/V11.5/java
-      - ./script:/opt/script
+      - ./volumes/jar:/opt/ibm/db2/V11.5/java
+      - ./volumes/script:/opt/script
       - ./volumes/core/wp_profile:/opt/HCL/wp_profile
     ports:
       - "7777:7777"
@@ -167,7 +167,7 @@ services:
       - DBNAME=wpsdb
     volumes:
 # pls make sure this relative path(relative to this docker-compose file) `./wpsdb` exists
-      - ./wpsdb:/database
+      - ./volumes/wpsdb:/database
     ports:
       - "50000:50000"
     privileged: true
