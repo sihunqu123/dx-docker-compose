@@ -15,7 +15,7 @@
 :: limitations under the License.
 
 
-:: This script will load all DX docker images that are accessible 
+:: This script will load all DX docker images that are accessible
 :: through docker-compose into the local docker registry.
 :: In addition to that, the dx.properties file will be updated
 :: with the tags of the docker images that were loaded by the script.
@@ -43,7 +43,7 @@ SET DX_DOCKER_IMAGE_RING_API=""
 SET DX_DOCKER_IMAGE_CORE=""
 SET DX_DOCKER_IMAGE_DESIGN_STUDIO:=""
 
-    for /l %%i in (0,1,5) do ( 
+    for /l %%i in (0,1,5) do (
         SET imageName=!listOfImages[%%i]!
         for /f "tokens=1,2 delims=:" %%a in ("!listOfImages[%%i]!") do (
             IF EXIST %%b*.tar.gz (
@@ -52,7 +52,7 @@ SET DX_DOCKER_IMAGE_DESIGN_STUDIO:=""
                         SET imageNameTag=%%j
                         Call echo !imageNameTag!
                         SET successCheck=!imageNameTag:~0,12!
-                        IF "!successCheck!"=="Loaded image" ( 
+                        IF "!successCheck!"=="Loaded image" (
                             IF %%a==DX_DOCKER_IMAGE_CONTENT_COMPOSER SET DX_DOCKER_IMAGE_CONTENT_COMPOSER=!imageNameTag:~14!
                             IF %%a==DX_DOCKER_IMAGE_IMAGE_PROCESSOR SET DX_DOCKER_IMAGE_IMAGE_PROCESSOR=!imageNameTag:~14!
                             IF %%a==DX_DOCKER_IMAGE_DATABASE_DIGITAL_ASSET_MANAGER SET DX_DOCKER_IMAGE_DATABASE_DIGITAL_ASSET_MANAGER=!imageNameTag:~14!
@@ -91,9 +91,9 @@ IF %%m==DX_DOCKER_IMAGE_CONTENT_COMPOSER  (
 ) ELSE IF %%m==DX_DOCKER_IMAGE_RING_API (
     IF %DX_DOCKER_IMAGE_RING_API%=="" ( echo %%m=%%n) ELSE ( echo %%m=%DX_DOCKER_IMAGE_RING_API%)
 ) ELSE IF %%m==DX_DOCKER_IMAGE_CORE (
-    IF %DX_DOCKER_IMAGE_CORE%=="" ( echo %%m=%%n) ELSE ( echo %%m=%DX_DOCKER_IMAGE_CORE%) 
+    IF %DX_DOCKER_IMAGE_CORE%=="" ( echo %%m=%%n) ELSE ( echo %%m=%DX_DOCKER_IMAGE_CORE%)
 ) ELSE IF %%m==DX_DOCKER_IMAGE_DESIGN_STUDIO (
-    IF %DX_DOCKER_IMAGE_DESIGN_STUDIO%=="" ( echo %%m=%%n) ELSE ( echo %%m=%DX_DOCKER_IMAGE_DESIGN_STUDIO%)    
+    IF %DX_DOCKER_IMAGE_DESIGN_STUDIO%=="" ( echo %%m=%%n) ELSE ( echo %%m=%DX_DOCKER_IMAGE_DESIGN_STUDIO%)
 ) else ( echo %%m)
 ))>result.properties
 DEL dx.properties

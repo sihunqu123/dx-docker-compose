@@ -14,7 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# This script will load all DX docker images that are accessible 
+# This script will load all DX docker images that are accessible
 # through docker-compose into the local docker registry.
 # In addition to that, the dx.properties file will be updated
 # with the tags of the docker images that were loaded by the script.
@@ -23,13 +23,15 @@
 # $1 is the Search Value or the Key
 # $2 is the Replace Value
 # $3 is the Current working Directory
-function updateProperties () 
-{
+
+
+function updateProperties {
     searchValue=$1
     replaceValue="$1=$2"
     pathValue=$3
     strSearchAndReplace="s/${searchValue}.*/${replaceValue//\//\\/}/"
-    sed -i '' ${strSearchAndReplace} ${pathValue}/dx.properties
+    # sed -i '' ${strSearchAndReplace} ${pathValue}/dx.properties
+    sed -i ${strSearchAndReplace} ${pathValue}/dx.properties
 }
 
 CWD="$PWD"

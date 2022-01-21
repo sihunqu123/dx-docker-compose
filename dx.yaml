@@ -12,12 +12,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-version: "3.8"
+version: "3"
 
 services:
   core:
     image: ${DX_DOCKER_IMAGE_CORE:?'Missing docker image environment parameter'}
+    container_name: "wps_core"
+    depends_on:
+      - wpsdb2
+      - wps_mysql
     volumes:
+#   folder to store the jar files needed when transferring to db2
+      - ./jar:/opt/ibm/db2/V11.5/java
+      - ./script:/opt/script
       - ./volumes/core/wp_profile:/opt/HCL/wp_profile
     ports:
       - "7777:7777"
@@ -28,15 +35,18 @@ services:
       - "10202:10202"
       - "10033:10033"
       - "10203:10203"
+    extra_hosts:
+      - "dx.hcl.com:192.168.10.10"
     networks:
       - default
   ringapi:
     depends_on:
       - core
     image: ${DX_DOCKER_IMAGE_RINGAPI:?'Missing docker image environment parameter'}
-    environment: 
+    container_name: "wps_ringapi"
+    environment:
       - DEBUG=ringapi-server:*
-      - PORTAL_PORT=10039 
+      - PORTAL_PORT=10039
       - PORTAL_HOST=core
       - CORS_ORIGIN=http://${DX_HOSTNAME:?'Please set hostname'}:3000,http://${DX_HOSTNAME:?'Please set hostname'}:5000,http://${DX_HOSTNAME:?'Please set hostname'}:10039,http://${DX_HOSTNAME:?'Please set hostname'}:5500,http://${DX_HOSTNAME:?'Please set hostname'}:5501
     ports:
@@ -47,6 +57,7 @@ services:
     depends_on:
       - dam-db
     image: ${DX_DOCKER_IMAGE_DAM:?'Missing docker image environment parameter'}
+    container_name: "wps_dam"
     environment:
       - DEBUG=@medialibrary/server:*
       - POSTGRES_DB_URI=postgres://medialibrary:1234@dam-db/test
@@ -65,33 +76,41 @@ services:
       - "3000:3001"
     volumes:
       - ./volumes/dam/upload:/opt/app/upload
+    extra_hosts:
+      - "dx.hcl.com:192.168.10.10"
     networks:
       - default
   image-processor:
     image: ${DX_DOCKER_IMAGE_IMAGE_PROCESSOR:?'Missing docker image environment parameter'}
-    environment: 
+    container_name: "wps_image-processor"
+    environment:
       - DEBUG=*
-      - HOST=0.0.0.0 
+      - HOST=0.0.0.0
       - CORS_ORIGIN=http://${DX_HOSTNAME:?'Please set hostname'}:3000,http://${DX_HOSTNAME:?'Please set hostname'}:10039
     ports:
       - "3500:8080"
+    extra_hosts:
+      - "dx.hcl.com:192.168.10.10"
     networks:
       - default
   cc:
     depends_on:
       - dam-db
     image: ${DX_DOCKER_IMAGE_CC:?'Missing docker image environment parameter'}
+    container_name: "wps_cc"
     ports:
       - "5000:3000"
-    environment: 
+    environment:
       - DEBUG=@content-ui/server:*
-      - PORTAL_PORT=10039 
+      - PORTAL_PORT=10039
       - PORTAL_HOST=core
       - EXTERNAL_RING_API_HOST=${DX_HOSTNAME:?'Please set hostname'}
       - EXTERNAL_RING_API_PORT=4000
       - RING_API_HOST=ringapi
       - RING_API_PORT=3000
       - CORS_ORIGIN=http://${DX_HOSTNAME:?'Please set hostname'}:10039
+    extra_hosts:
+      - "dx.hcl.com:192.168.10.10"
     networks:
       - default
   ds:
@@ -100,9 +119,9 @@ services:
     image: ${DX_DOCKER_IMAGE_DS:?'Missing docker image environment parameter'}
     ports:
       - "5500:3000"
-    environment: 
+    environment:
       - DEBUG=@site-manager/server:*
-      - PORTAL_PORT=10039 
+      - PORTAL_PORT=10039
       - PORTAL_HOST=core
       - EXTERNAL_RING_API_HOST=${DX_HOSTNAME:?'Please set hostname'}
       - WCMREST_API_HOST=${DX_HOSTNAME:?'Please set hostname'}
@@ -114,6 +133,7 @@ services:
       - default
   dam-db:
     image: ${DX_DOCKER_IMAGE_DAM_DB:?'Missing docker image environment parameter'}
+    container_name: "wps_dam-db"
     environment:
       POSTGRES_DB: test
       POSTGRES_USER: medialibrary
@@ -128,7 +148,158 @@ services:
       - ./volumes/dam/db:/var/lib/pgsql/11/data
     ports:
       - "5432:5432"
+    extra_hosts:
+      - "dx.hcl.com:192.168.10.10"
     networks:
       - default
+#########################################
+# The db2 service                       #
+#########################################
+# the db2 service
+# refer:
+#   https://hub.docker.com/r/ibmcom/db2
+  wpsdb2:
+    image: "ibmcom/db2"
+    container_name: "wpsdb2"
+    environment:
+      - LICENSE=accept
+      - DB2INST1_PASSWORD=passw0rd
+      - DBNAME=wpsdb
+    volumes:
+# pls make sure this relative path(relative to this docker-compose file) `./wpsdb` exists
+      - ./wpsdb:/database
+    ports:
+      - "50000:50000"
+    privileged: true
+#########################################
+# The openLDAP service                  #
+#########################################
+# TODO: confiure LDAP to wps
+#  ldap:
+#    image: "beli/ldap"
+#    container_name: "ldap"
+#    environment:
+#      - CONF_ROOTPW=passw0rd
+#      - CONF_BASEDN=dc=example,dc=com
+#    volumes:
+#      - ./openldap/config:/config
+#      - ./openldap/data:/data
+##   entrypoint: ""
+##   command: "/bin/sh /Selenium_Execution/runtest.sh"
+##   command: /bin/sh -c "while true; do echo hello world; sleep 999; done"
+##   working_dir: "/app"
+#    ports:
+#      - "3389:389"
+#########################################
+# The mysql service                     #
+#########################################
+  wps_mysql:
+    image: "mysql:5.7.34"
+#   image: "mysql:latest"
+    container_name: "wps_mysql"
+    volumes:
+      - ./volumes/mysql/conf:/etc/mysql/conf.d:ro
+      - ./volumes/mysql/log:/var/log/mysql
+      - ./volumes/mysql/data:/var/lib/mysql
+#     - ./my_custom.cnf:/opt/bitnami/mysql/conf/my_custom.cnf:ro
+    environment:
+      # ALLOW_EMPTY_PASSWORD is recommended only for development.
+      - MYSQL_ROOT_PASSWORD=passw0rd
+#     - ALLOW_EMPTY_PASSWORD=yes
+#     - MYSQL_DATABASE=net_banking
+#     - MYSQL_AUTHENTICATION_PLUGIN=mysql_native_password
+    ports:
+      - '3306:3306'
+#   healthcheck:
+#     test: ['CMD', '/opt/bitnami/scripts/mysql/healthcheck.sh']
+#     interval: 15s
+#     timeout: 5s
+#     retries: 6
+    extra_hosts:
+      - "dx.hcl.com:192.168.10.10"
+    networks:
+      - default
+  mysql-client:
+    image: "bitnami/mysql:latest"
+    container_name: "mysql-client"
+    environment:
+      # ALLOW_EMPTY_PASSWORD is recommended only for development.
+      - ALLOW_EMPTY_PASSWORD=yes
+      - MYSQL_USER=root
+      - MYSQL_PASSWORD=passw0rd
+      - MYSQL_ROOT_PASSWORD=passw0rd
+#     - MYSQL_DATABASE=net_banking
+      - MYSQL_AUTHENTICATION_PLUGIN=mysql_native_password
+#################################################################
+# The redis service(only required by media connector service)   #
+#################################################################
+  redis:
+    # refer: https://github.com/bitnami/bitnami-docker-redis
+    image: bitnami/redis:latest
+    container_name: "wps_redis"
+    ports:
+      - '6379:6379'
+    environment:
+      - ALLOW_EMPTY_PASSWORD=yes
+#     - REDIS_PASSWORD=password123
+#     - REDIS_PORT_NUMBER=7000
+#     - REDIS_TLS_ENABLED=yes
+#     - REDIS_TLS_CERT_FILE=/opt/bitnami/redis/certs/redis.crt
+#     - REDIS_TLS_KEY_FILE=/opt/bitnami/redis/certs/redis.key
+#     - REDIS_TLS_CA_FILE=/opt/bitnami/redis/certs/redisCA.crt
+    # to password extra command-line flags to redis-server
+#   command: /opt/bitnami/scripts/redis/run.sh --maxmemory 100mb
+    volumes:
+      - ./volumes/tomcat/wechat/app:/app
+#     - /path/to/your_redis.conf:/opt/bitnami/redis/mounted-etc/redis.conf
+#     - /path/to/certs:/opt/bitnami/redis/certs
+#     - /path/to/redis-persistence:/bitnami/redis/data
+    extra_hosts:
+      - "dx.hcl.com:192.168.10.10"
+    networks:
+      - default
+#########################################
+# The media connector service                     #
+#########################################
+  wechat-connector:
+    # refer: https://hub.docker.com/r/bitnami/tomcat/
+    image: docker.io/bitnami/tomcat:9.0
+    container_name: "wps_wechat_connector"
+    ports:
+      - '8081:8080'
+    environment:
+      - ALLOW_EMPTY_PASSWORD=yes
+    volumes:
+      - ./volumes/tomcat/wechat/app:/app
+    extra_hosts:
+      - "dx.hcl.com:192.168.10.10"
+    networks:
+      - default
+##weibo-connector:
+##  image: docker.io/bitnami/tomcat:9.0
+##  container_name: "wps_weibo_connector"
+##  ports:
+##    - '8082:8080'
+##  environment:
+##    - ALLOW_EMPTY_PASSWORD=yes
+##  volumes:
+##    - ./volumes/tomcat/weibo/app:/app
+##  extra_hosts:
+##    - "dx.hcl.com:192.168.10.10"
+##  networks:
+##    - default
+##wecom-connector:
+##  image: docker.io/bitnami/tomcat:9.0
+##  container_name: "wps_wecom_connector"
+##  ports:
+##    - '8083:8080'
+##  environment:
+##    - ALLOW_EMPTY_PASSWORD=yes
+##  volumes:
+##    - ./volumes/tomcat/wecom/app:/app
+##  extra_hosts:
+##    - "dx.hcl.com:192.168.10.10"
+##  networks:
+##    - default
 networks:
   default:
